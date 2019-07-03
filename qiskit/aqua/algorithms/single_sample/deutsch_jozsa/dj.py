@@ -25,6 +25,9 @@ from qiskit.aqua import AquaError, Pluggable, PluggableType, get_pluggable_class
 from qiskit.aqua.algorithms import QuantumAlgorithm
 from qiskit.aqua.utils import get_subsystem_density_matrix
 
+from qiskit.assertions.asserts import Asserts
+from qiskit.assertions.assertmanager import AssertManager
+
 logger = logging.getLogger(__name__)
 
 
@@ -86,11 +89,22 @@ class DeutschJozsa(QuantumAlgorithm):
         if self._circuit is not None:
             return self._circuit
 
+        measurement_cr = ClassicalRegister(len(self._oracle.variable_register), name='m')
+
         # preoracle circuit
         qc_preoracle = QuantumCircuit(
             self._oracle.variable_register,
             self._oracle.output_register,
+            measurement_cr
         )
+
+        print ("self._oracle.variable_register = ")
+        print (self._oracle.variable_register)
+        print ("self._oracle.output_register = ")
+        print (self._oracle.output_register)
+
+        breakpoint0 = qc_preoracle.assertclassical(0, .05, self._oracle.variable_register, measurement_cr)
+
         qc_preoracle.h(self._oracle.variable_register)
         qc_preoracle.x(self._oracle.output_register)
         qc_preoracle.h(self._oracle.output_register)
@@ -111,11 +125,10 @@ class DeutschJozsa(QuantumAlgorithm):
 
         # measurement circuit
         if measurement:
-            measurement_cr = ClassicalRegister(len(self._oracle.variable_register), name='m')
-            self._circuit.add_register(measurement_cr)
             self._circuit.measure(self._oracle.variable_register, measurement_cr)
 
-        return self._circuit
+        # return self._circuit
+        return [breakpoint0, self._circuit]
 
     def _run(self):
         if self._quantum_instance.is_statevector:
@@ -136,7 +149,9 @@ class DeutschJozsa(QuantumAlgorithm):
             top_measurement = np.binary_repr(max_amplitude_idx, len(self._oracle.variable_register))
         else:
             qc = self.construct_circuit(measurement=True)
-            measurement = self._quantum_instance.execute(qc).get_counts(qc)
+            breakpoint_measurement = self._quantum_instance.execute(qc).get_counts(qc[0])
+            measurement = self._quantum_instance.execute(qc).get_counts(qc[1])
+            # print (measurement)
             self._ret['measurement'] = measurement
             top_measurement = max(measurement.items(), key=operator.itemgetter(1))[0]
 
