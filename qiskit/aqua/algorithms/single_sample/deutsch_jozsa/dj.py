@@ -127,6 +127,8 @@ class DeutschJozsa(QuantumAlgorithm):
         qc_postoracle.barrier()
 
         self._circuit = qc_preoracle + qc_oracle + qc_postoracle
+        breakpoints.append(self._circuit.assertclassical(0, .05, self._oracle.variable_register, measurement_cr))
+        breakpoints.append(self._circuit.assertclassical('100', .05, self._oracle.variable_register, measurement_cr))
 
         # measurement circuit
         if measurement:
