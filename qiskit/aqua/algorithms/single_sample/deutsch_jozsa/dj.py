@@ -86,6 +86,8 @@ class DeutschJozsa(QuantumAlgorithm):
             the QuantumCircuit object for the constructed circuit
         """
 
+        breakpoints = []
+
         if self._circuit is not None:
             return self._circuit
 
@@ -103,9 +105,10 @@ class DeutschJozsa(QuantumAlgorithm):
         print ("self._oracle.output_register = ")
         print (self._oracle.output_register)
 
-        breakpoint0 = qc_preoracle.assertclassical(0, .05, self._oracle.variable_register, measurement_cr)
-
+        breakpoints.append(qc_preoracle.assertclassical(0, .05, self._oracle.variable_register, measurement_cr))
         qc_preoracle.h(self._oracle.variable_register)
+        breakpoints.append(qc_preoracle.assertsuperposition(.05, self._oracle.variable_register, measurement_cr))
+
         qc_preoracle.x(self._oracle.output_register)
         qc_preoracle.h(self._oracle.output_register)
         qc_preoracle.barrier()
@@ -117,7 +120,9 @@ class DeutschJozsa(QuantumAlgorithm):
         qc_postoracle = QuantumCircuit(
             self._oracle.variable_register,
             self._oracle.output_register,
+            measurement_cr
         )
+        breakpoints.append(qc_preoracle.assertsuperposition(.05, self._oracle.variable_register, measurement_cr))
         qc_postoracle.h(self._oracle.variable_register)
         qc_postoracle.barrier()
 
@@ -128,7 +133,7 @@ class DeutschJozsa(QuantumAlgorithm):
             self._circuit.measure(self._oracle.variable_register, measurement_cr)
 
         # return self._circuit
-        return [breakpoint0, self._circuit]
+        return breakpoints + [self._circuit]
 
     def _run(self):
         if self._quantum_instance.is_statevector:
@@ -149,9 +154,23 @@ class DeutschJozsa(QuantumAlgorithm):
             top_measurement = np.binary_repr(max_amplitude_idx, len(self._oracle.variable_register))
         else:
             qc = self.construct_circuit(measurement=True)
-            breakpoint_measurement = self._quantum_instance.execute(qc).get_counts(qc[0])
-            measurement = self._quantum_instance.execute(qc).get_counts(qc[1])
-            # print (measurement)
+            sim_result = self._quantum_instance.execute(qc)
+
+            stat_outputs = AssertManager.stat_collect(qc[0:-1], sim_result)
+            print("Results of breakpoints statistical test:")
+            print(stat_outputs)
+
+            # stat_outputs_1 = AssertManager.stat_collect(qc[1], sim_result)
+            # print("Results of breakpoint1 statistical test:")
+            # print(stat_outputs_1)
+            #
+            # stat_outputs_2 = AssertManager.stat_collect(qc[2], sim_result)
+            # print("Results of breakpoint2 statistical test:")
+            # print(stat_outputs_2)
+
+            measurement = sim_result.get_counts(qc[3])
+            print ("measurement = ")
+            print (measurement)
             self._ret['measurement'] = measurement
             top_measurement = max(measurement.items(), key=operator.itemgetter(1))[0]
 
