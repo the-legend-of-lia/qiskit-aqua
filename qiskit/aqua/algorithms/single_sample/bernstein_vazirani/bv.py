@@ -89,6 +89,7 @@ class BernsteinVazirani(QuantumAlgorithm):
         if self._circuit is not None:
             return self._circuit
 
+        breakpoints = []
         measurement_cr = ClassicalRegister(len(self._oracle.variable_register), name='m')
 
         qc_preoracle = QuantumCircuit(
@@ -97,9 +98,9 @@ class BernsteinVazirani(QuantumAlgorithm):
             measurement_cr
         )
 
-        breakpoint0 = qc_preoracle.assertclassical(0, .05, self._oracle.variable_register, measurement_cr)
+        breakpoints.append(qc_preoracle.assert_classical(0, .05, self._oracle.variable_register, measurement_cr))
         qc_preoracle.h(self._oracle.variable_register)
-        breakpoint1 = qc_preoracle.assertsuperposition(.05, self._oracle.variable_register, measurement_cr)
+        breakpoints.append(qc_preoracle.assert_uniform(.05, self._oracle.variable_register, measurement_cr))
 
         qc_preoracle.x(self._oracle.output_register)
         qc_preoracle.h(self._oracle.output_register)
@@ -115,7 +116,7 @@ class BernsteinVazirani(QuantumAlgorithm):
             self._oracle.output_register,
             measurement_cr
         )
-        breakpoint2 = qc_preoracle.assertsuperposition(.05, self._oracle.variable_register, measurement_cr)
+        breakpoints.append(qc_preoracle.assert_uniform(.05, self._oracle.variable_register, measurement_cr))
         qc_postoracle.h(self._oracle.variable_register)
 
         self._circuit = qc_preoracle + qc_oracle + qc_postoracle
@@ -125,7 +126,7 @@ class BernsteinVazirani(QuantumAlgorithm):
             self._circuit.measure(self._oracle.variable_register, measurement_cr)
 
         # return self._circuit
-        return [breakpoint0, breakpoint1, breakpoint2, self._circuit]
+        return breakpoints + [self._circuit]
 
     def _run(self):
         if self._quantum_instance.is_statevector:
@@ -148,19 +149,11 @@ class BernsteinVazirani(QuantumAlgorithm):
             qc = self.construct_circuit(measurement=True)
             sim_result = self._quantum_instance.execute(qc)
 
-            stat_outputs_0 = AssertManager.stat_collect(qc[0], sim_result)
-            print("Results of breakpoint0 statistical test:")
-            print(stat_outputs_0)
+            stat_outputs = AssertManager.stat_collect(qc[0:-1], sim_result)
+            print("Results of breakpoints statistical test:")
+            print(stat_outputs)
 
-            stat_outputs_1 = AssertManager.stat_collect(qc[1], sim_result)
-            print("Results of breakpoint1 statistical test:")
-            print(stat_outputs_1)
-
-            stat_outputs_2 = AssertManager.stat_collect(qc[2], sim_result)
-            print("Results of breakpoint2 statistical test:")
-            print(stat_outputs_2)
-
-            measurement = sim_result.get_counts(qc[3])
+            measurement = sim_result.get_counts(qc[-1])
             print ("measurement = ")
             print (measurement)
             self._ret['measurement'] = measurement
