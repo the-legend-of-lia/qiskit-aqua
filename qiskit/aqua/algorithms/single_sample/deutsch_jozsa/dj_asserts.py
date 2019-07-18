@@ -25,6 +25,8 @@ from qiskit.aqua import AquaError, Pluggable, PluggableType, get_pluggable_class
 from qiskit.aqua.algorithms import QuantumAlgorithm
 from qiskit.aqua.utils import get_subsystem_density_matrix
 
+from qiskit.assertions.assertmanager import AssertManager
+
 logger = logging.getLogger(__name__)
 
 
@@ -86,12 +88,24 @@ class DeutschJozsa(QuantumAlgorithm):
         if self._circuit is not None:
             return self._circuit
 
+        breakpoints = []
+        measurement_cr = ClassicalRegister(len(self._oracle.variable_register), name='m')
+
         # preoracle circuit
         qc_preoracle = QuantumCircuit(
             self._oracle.variable_register,
             self._oracle.output_register,
+            measurement_cr
         )
+
+        # classical input state in oracle variable_register
+        breakpoints.append(qc_preoracle.assert_classical(self._oracle.variable_register, measurement_cr, .05, 0))
+
         qc_preoracle.h(self._oracle.variable_register)
+
+        # uniform superposition in oracle variable_register after Hadamards
+        breakpoints.append(qc_preoracle.assert_uniform(self._oracle.variable_register, measurement_cr, .05))
+
         qc_preoracle.x(self._oracle.output_register)
         qc_preoracle.h(self._oracle.output_register)
         qc_preoracle.barrier()
@@ -103,19 +117,22 @@ class DeutschJozsa(QuantumAlgorithm):
         qc_postoracle = QuantumCircuit(
             self._oracle.variable_register,
             self._oracle.output_register,
+            measurement_cr
         )
         qc_postoracle.h(self._oracle.variable_register)
         qc_postoracle.barrier()
 
         self._circuit = qc_preoracle + qc_oracle + qc_postoracle
+        # classical output state in oracle variable_register after Hadamards
+        breakpoints.append(self._circuit.assert_classical(self._oracle.variable_register, measurement_cr, .05, 0))
+        breakpoints.append(self._circuit.assert_classical(self._oracle.variable_register, measurement_cr, .05, '100'))
 
         # measurement circuit
         if measurement:
-            measurement_cr = ClassicalRegister(len(self._oracle.variable_register), name='m')
-            self._circuit.add_register(measurement_cr)
             self._circuit.measure(self._oracle.variable_register, measurement_cr)
 
-        return self._circuit
+        # return self._circuit
+        return breakpoints + [self._circuit]
 
     def _run(self):
         if self._quantum_instance.is_statevector:
@@ -136,7 +153,23 @@ class DeutschJozsa(QuantumAlgorithm):
             top_measurement = np.binary_repr(max_amplitude_idx, len(self._oracle.variable_register))
         else:
             qc = self.construct_circuit(measurement=True)
-            measurement = self._quantum_instance.execute(qc).get_counts(qc)
+            sim_result = self._quantum_instance.execute(qc)
+
+            stat_outputs = AssertManager.stat_collect(qc[0:-1], sim_result)
+
+            # assert classical input state in oracle variable_register
+            assert ( stat_outputs[qc[0].name]['passed'] )
+            # assert ( sim_result.get_passed(breakpoints[0]) )
+
+            # assert uniform superposition in oracle variable_register after Hadamards
+            assert ( stat_outputs[qc[1].name]['passed'] )
+
+            # assert classical output state in oracle variable_register after Hadamards
+            assert( stat_outputs[qc[2].name]['passed'] != stat_outputs[qc[3].name]['passed'] )
+
+            measurement = sim_result.get_counts(qc[-1])
+            print ("measurement = ")
+            print (measurement)
             self._ret['measurement'] = measurement
             top_measurement = max(measurement.items(), key=operator.itemgetter(1))[0]
 
