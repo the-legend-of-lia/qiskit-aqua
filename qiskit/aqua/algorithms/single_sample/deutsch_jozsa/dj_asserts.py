@@ -25,8 +25,6 @@ from qiskit.aqua import AquaError, Pluggable, PluggableType, get_pluggable_class
 from qiskit.aqua.algorithms import QuantumAlgorithm
 from qiskit.aqua.utils import get_subsystem_density_matrix
 
-from qiskit.assertions.assertmanager import AssertManager
-
 logger = logging.getLogger(__name__)
 
 
@@ -159,7 +157,7 @@ class DeutschJozsa(QuantumAlgorithm):
 
             # assert classical input state in oracle variable_register
             print ( "sim_result.get_assert(bp[0]) = " )
-            print ( sim_result.get_assertion_passed(bp[0]) )
+            print ( sim_result.get_hion_passed(bp[0]) )
             assert ( sim_result.get_assertion_passed(bp[0]) )
 
             # assert uniform superposition in oracle variable_register after Hadamards
