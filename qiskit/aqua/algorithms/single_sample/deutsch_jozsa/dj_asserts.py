@@ -61,6 +61,7 @@ class DeutschJozsa(QuantumAlgorithm):
 
         self._oracle = oracle
         self._circuit = None
+        self._breakpoints = []
         self._ret = {}
 
     @classmethod
@@ -88,7 +89,6 @@ class DeutschJozsa(QuantumAlgorithm):
         if self._circuit is not None:
             return self._circuit
 
-        breakpoints = []
         measurement_cr = ClassicalRegister(len(self._oracle.variable_register), name='m')
 
         # preoracle circuit
@@ -99,12 +99,12 @@ class DeutschJozsa(QuantumAlgorithm):
         )
 
         # classical input state in oracle variable_register
-        breakpoints.append(qc_preoracle.assert_classical(self._oracle.variable_register, measurement_cr, .05, 0))
+        self._breakpoints.append(qc_preoracle.assert_classical(self._oracle.variable_register, measurement_cr, .05, 0))
 
         qc_preoracle.h(self._oracle.variable_register)
 
         # uniform superposition in oracle variable_register after Hadamards
-        breakpoints.append(qc_preoracle.assert_uniform(self._oracle.variable_register, measurement_cr, .05))
+        self._breakpoints.append(qc_preoracle.assert_uniform(self._oracle.variable_register, measurement_cr, .05))
 
         qc_preoracle.x(self._oracle.output_register)
         qc_preoracle.h(self._oracle.output_register)
@@ -124,19 +124,19 @@ class DeutschJozsa(QuantumAlgorithm):
 
         self._circuit = qc_preoracle + qc_oracle + qc_postoracle
         # classical output state in oracle variable_register after Hadamards
-        breakpoints.append(self._circuit.assert_classical(self._oracle.variable_register, measurement_cr, .05, 0))
-        breakpoints.append(self._circuit.assert_classical(self._oracle.variable_register, measurement_cr, .05, '100'))
+        self._breakpoints.append(self._circuit.assert_classical(self._oracle.variable_register, measurement_cr, .05, 0))
+        self._breakpoints.append(self._circuit.assert_classical(self._oracle.variable_register, measurement_cr, .05, '100'))
 
         # measurement circuit
         if measurement:
             self._circuit.measure(self._oracle.variable_register, measurement_cr)
 
         # return self._circuit
-        return breakpoints + [self._circuit]
+        return self._breakpoints, self._circuit
 
     def _run(self):
         if self._quantum_instance.is_statevector:
-            qc = self.construct_circuit(measurement=False)
+            bp, qc = self.construct_circuit(measurement=False)
             result = self._quantum_instance.execute(qc)
             complete_state_vec = result.get_statevector(qc)
             variable_register_density_matrix = get_subsystem_density_matrix(
@@ -152,22 +152,23 @@ class DeutschJozsa(QuantumAlgorithm):
             max_amplitude_idx = np.where(variable_register_density_matrix_diag == max_amplitude)[0][0]
             top_measurement = np.binary_repr(max_amplitude_idx, len(self._oracle.variable_register))
         else:
-            qc = self.construct_circuit(measurement=True)
-            sim_result = self._quantum_instance.execute(qc)
+            bp, qc = self.construct_circuit(measurement=True)
+            sim_result = self._quantum_instance.execute( bp + [qc] )
 
-            stat_outputs = AssertManager.stat_collect(qc[0:-1], sim_result)
+            # stat_outputs = AssertManager.stat_collect(qc[0:-1], sim_result)
 
             # assert classical input state in oracle variable_register
-            assert ( stat_outputs[qc[0].name]['passed'] )
-            # assert ( sim_result.get_passed(breakpoints[0]) )
+            print ( "sim_result.get_assert(bp[0]) = " )
+            print ( sim_result.get_assertion_passed(bp[0]) )
+            assert ( sim_result.get_assertion_passed(bp[0]) )
 
             # assert uniform superposition in oracle variable_register after Hadamards
-            assert ( stat_outputs[qc[1].name]['passed'] )
+            assert ( sim_result.get_assertion_passed(bp[1]) )
 
             # assert classical output state in oracle variable_register after Hadamards
-            assert( stat_outputs[qc[2].name]['passed'] != stat_outputs[qc[3].name]['passed'] )
+            assert ( sim_result.get_assertion_passed(bp[2]) != sim_result.get_assertion_passed(bp[3]) )
 
-            measurement = sim_result.get_counts(qc[-1])
+            measurement = sim_result.get_counts(qc)
             print ("measurement = ")
             print (measurement)
             self._ret['measurement'] = measurement
