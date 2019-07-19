@@ -12,15 +12,15 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
-from .grover.grover import Grover
+from .grover.grover_asserts import Grover
 from .iterative_qpe.iqpe import IQPE
 from .qpe.qpe import QPE
 from .amplitude_estimation.ae import AmplitudeEstimation
 from .simon.simon import Simon
-from .deutsch_jozsa.dj import DeutschJozsa
+from .deutsch_jozsa.dj_asserts import DeutschJozsa
 from .bernstein_vazirani.bv import BernsteinVazirani
 from .hhl.hhl import HHL
-from .shor.shor import Shor
+from .shor.shor_asserts import Shor
 
 
 __all__ = [
