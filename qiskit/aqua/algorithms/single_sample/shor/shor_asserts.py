@@ -33,7 +33,6 @@ from qiskit.aqua.circuits import FourierTransformCircuits as ftc
 from qiskit.aqua.circuits.gates import mcu1
 from qiskit.aqua.utils import summarize_circuits
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -314,6 +313,8 @@ class Shor(QuantumAlgorithm):
             QuantumCircuit: quantum circuit.
         """
 
+        breakpoints = []
+
         # Get n value used in Shor's algorithm, to know how many qubits are used
         self._n = math.ceil(math.log(self._N, 2))
 
@@ -324,12 +325,20 @@ class Shor(QuantumAlgorithm):
         # auxilliary quantum register used in addition and multiplication
         self._aux_qreg = QuantumRegister(self._n + 2, name='aux')
 
+        up_cqreg = ClassicalRegister(2 * self._n, name='m_up')
+        down_cqreg = ClassicalRegister(self._n, name='m_down')
+
         # Create Quantum Circuit
-        circuit = QuantumCircuit(self._up_qreg, self._down_qreg, self._aux_qreg)
+        circuit = QuantumCircuit(self._up_qreg, self._down_qreg, self._aux_qreg, up_cqreg, down_cqreg)
 
         # Initialize down register to 1 and create maximal superposition in top register
         circuit.u2(0, np.pi, self._up_qreg)
         circuit.u3(np.pi, 0, np.pi, self._down_qreg[0])
+
+        # validate maximal superposition in top register
+        breakpoints.append(circuit.assert_uniform(self._up_qreg, up_cqreg, 0.05))
+        # validate initialize down register to 1
+        breakpoints.append(circuit.assert_classical(self._down_qreg, down_cqreg, 0.05, 1))
 
         # Apply the multiplication gates as showed in the report in order to create the exponentiation
         for i in range(0, 2 * self._n):
@@ -344,20 +353,21 @@ class Shor(QuantumAlgorithm):
         # Apply inverse QFT
         ftc.construct_circuit(circuit=circuit, qubits=self._up_qreg, do_swaps=True, inverse=True)
 
+        # validate uncomputation is complete and registers are in product state
+        breakpoints.append(circuit.assert_product(self._up_qreg[:], up_cqreg[:], self._down_qreg[:], down_cqreg[:], .05))
+
         if measurement:
-            up_cqreg = ClassicalRegister(2 * self._n, name='m')
-            circuit.add_register(up_cqreg)
             circuit.measure(self._up_qreg, up_cqreg)
 
         logger.info(summarize_circuits(circuit))
 
-        return circuit
+        return breakpoints, circuit
 
     def _get_factors(self, output_desired, t_upper):
         """
         Apply the continued fractions to find r and the gcd to find the desired factors.
         """
-        x_value = int(output_desired, 2)
+        x_value = int(output_desired.replace(" ", ""), 2)
         logger.info('In decimal, x_final value for this result is: {0}.'.format(x_value))
 
         if x_value <= 0:
@@ -457,7 +467,7 @@ class Shor(QuantumAlgorithm):
             logger.debug('Running with N={} and a={}.'.format(self._N, self._a))
 
             if self._quantum_instance.is_statevector:
-                circuit = self.construct_circuit(measurement=False)
+                breakpoints, circuit = self.construct_circuit(measurement=False)
                 logger.warning('The statevector_simulator might lead to subsequent computation using too much memory.')
                 result = self._quantum_instance.execute(circuit)
                 complete_state_vec = result.get_statevector(circuit)
@@ -473,8 +483,21 @@ class Shor(QuantumAlgorithm):
                     if not v == 0:
                         counts[bin(int(i))[2:].zfill(2 * self._n)] = v ** 2
             else:
-                circuit = self.construct_circuit(measurement=True)
-                counts = self._quantum_instance.execute(circuit).get_counts(circuit)
+                breakpoints, circuit = self.construct_circuit(measurement=True)
+                sim_result = self._quantum_instance.execute( breakpoints + [circuit] )
+
+                # stat_outputs = AssertManager.stat_collect(circuit[0:-1], sim_result)
+                # print("Results of breakpoints statistical test:")
+                # print(stat_outputs)
+
+                # validate maximal superposition in top register
+                assert ( sim_result.get_assertion_passed(breakpoints[0]) )
+                # validate initialize down register to 1
+                assert ( sim_result.get_assertion_passed(breakpoints[1]) )
+                # validate uncomputation is complete and registers are in product state
+                assert ( sim_result.get_assertion_passed(breakpoints[2]) )
+
+                counts = sim_result.get_counts(circuit)
 
             self._ret['results'] = dict()
 
