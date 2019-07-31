@@ -336,9 +336,9 @@ class Shor(QuantumAlgorithm):
         circuit.u3(np.pi, 0, np.pi, self._down_qreg[0])
 
         # validate maximal superposition in top register
-        breakpoints.append(circuit.assert_uniform(self._up_qreg, up_cqreg, 0.05))
+        breakpoints.append(circuit.get_breakpoint_uniform(self._up_qreg, up_cqreg, 0.05))
         # validate initialize down register to 1
-        breakpoints.append(circuit.assert_classical(self._down_qreg, down_cqreg, 0.05, 1))
+        breakpoints.append(circuit.get_breakpoint_classical(self._down_qreg, down_cqreg, 0.05, 1))
 
         # Apply the multiplication gates as showed in the report in order to create the exponentiation
         for i in range(0, 2 * self._n):
@@ -354,7 +354,7 @@ class Shor(QuantumAlgorithm):
         ftc.construct_circuit(circuit=circuit, qubits=self._up_qreg, do_swaps=True, inverse=True)
 
         # validate uncomputation is complete and registers are in product state
-        breakpoints.append(circuit.assert_product(self._up_qreg[:], up_cqreg[:], self._down_qreg[:], down_cqreg[:], .05))
+        breakpoints.append(circuit.get_breakpoint_product(self._up_qreg[:], up_cqreg[:], self._down_qreg[:], down_cqreg[:], .05))
 
         if measurement:
             circuit.measure(self._up_qreg, up_cqreg)
@@ -485,10 +485,6 @@ class Shor(QuantumAlgorithm):
             else:
                 breakpoints, circuit = self.construct_circuit(measurement=True)
                 sim_result = self._quantum_instance.execute( breakpoints + [circuit] )
-
-                # stat_outputs = AssertManager.stat_collect(circuit[0:-1], sim_result)
-                # print("Results of breakpoints statistical test:")
-                # print(stat_outputs)
 
                 # validate maximal superposition in top register
                 assert ( sim_result.get_assertion_passed(breakpoints[0]) )

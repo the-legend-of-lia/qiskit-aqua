@@ -229,7 +229,7 @@ class Grover(QuantumAlgorithm):
             print("the chi-squared statstics of the assertions should decrease monotonically,")
             print("validating that the amplitude is correctly amplified.")
             print("The chi-squared statstics = ")
-            assertion_chisq = [ sim_result.get_assertion_chisq(breakpoint) for breakpoint in bp ]
+            assertion_chisq = [ sim_result.get_assertion_stats(breakpoint)[0] for breakpoint in bp ]
             print (assertion_chisq)
 
             def non_increasing(L):
@@ -260,7 +260,7 @@ class Grover(QuantumAlgorithm):
             creg = ClassicalRegister(len(qreg), name='m')
             self._qc_amplitude_amplification = QuantumCircuit(qreg, creg) + self.qc_amplitude_amplification_iteration
             # Test whether the oracle variable register is a unimodal distribution after each iteration
-            breakpoint = self._qc_amplitude_amplification.assert_classical(qreg, creg, .05)
+            breakpoint = self._qc_amplitude_amplification.get_breakpoint_classical(qreg, creg, .05)
             self._bp_amplitude_amplification.append(breakpoint)
 
         measurement_cr = ClassicalRegister(len(self._oracle.variable_register), name='m')
@@ -292,7 +292,7 @@ class Grover(QuantumAlgorithm):
                 for _ in range(target_num_iterations):
                     self._qc_amplitude_amplification += self.qc_amplitude_amplification_iteration
                     # Test whether the oracle variable register is a unimodal distribution after each iteration
-                    breakpoint = self._qc_amplitude_amplification.assert_classical(qreg, creg, .05)
+                    breakpoint = self._qc_amplitude_amplification.get_breakpoint_classical(qreg, creg, .05)
                     self._bp_amplitude_amplification.append(breakpoint)
                 return self._run_with_existing_iterations()
 
@@ -309,7 +309,7 @@ class Grover(QuantumAlgorithm):
             for i in range(self._num_iterations):
                 self._qc_amplitude_amplification += self.qc_amplitude_amplification_iteration
                 # Test whether the oracle variable register is a unimodal distribution after each iteration
-                breakpoint = self._qc_amplitude_amplification.assert_classical(qreg, creg, .05)
+                breakpoint = self._qc_amplitude_amplification.get_breakpoint_classical(qreg, creg, .05)
                 self._bp_amplitude_amplification.append(breakpoint)
             assignment, oracle_evaluation = self._run_with_existing_iterations()
 

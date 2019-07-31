@@ -97,12 +97,12 @@ class DeutschJozsa(QuantumAlgorithm):
         )
 
         # classical input state in oracle variable_register
-        self._breakpoints.append(qc_preoracle.assert_classical(self._oracle.variable_register, measurement_cr, .05, 0))
+        self._breakpoints.append(qc_preoracle.get_breakpoint_classical(self._oracle.variable_register, measurement_cr, .05, 0))
 
         qc_preoracle.h(self._oracle.variable_register)
 
         # uniform superposition in oracle variable_register after Hadamards
-        self._breakpoints.append(qc_preoracle.assert_uniform(self._oracle.variable_register, measurement_cr, .05))
+        self._breakpoints.append(qc_preoracle.get_breakpoint_uniform(self._oracle.variable_register, measurement_cr, .05))
 
         qc_preoracle.x(self._oracle.output_register)
         qc_preoracle.h(self._oracle.output_register)
@@ -122,8 +122,8 @@ class DeutschJozsa(QuantumAlgorithm):
 
         self._circuit = qc_preoracle + qc_oracle + qc_postoracle
         # classical output state in oracle variable_register after Hadamards
-        self._breakpoints.append(self._circuit.assert_classical(self._oracle.variable_register, measurement_cr, .05, 0))
-        self._breakpoints.append(self._circuit.assert_classical(self._oracle.variable_register, measurement_cr, .05, '100'))
+        self._breakpoints.append(self._circuit.get_breakpoint_classical(self._oracle.variable_register, measurement_cr, .05, 0))
+        self._breakpoints.append(self._circuit.get_breakpoint_classical(self._oracle.variable_register, measurement_cr, .05, '100'))
 
         # measurement circuit
         if measurement:
@@ -153,11 +153,9 @@ class DeutschJozsa(QuantumAlgorithm):
             bp, qc = self.construct_circuit(measurement=True)
             sim_result = self._quantum_instance.execute( bp + [qc] )
 
-            # stat_outputs = AssertManager.stat_collect(qc[0:-1], sim_result)
-
             # assert classical input state in oracle variable_register
-            print ( "sim_result.get_assert(bp[0]) = " )
-            print ( sim_result.get_hion_passed(bp[0]) )
+            print ( "sim_result.get_assertion_passed(bp[0]) = " )
+            print ( sim_result.get_assertion_passed(bp[0]) )
             assert ( sim_result.get_assertion_passed(bp[0]) )
 
             # assert uniform superposition in oracle variable_register after Hadamards
