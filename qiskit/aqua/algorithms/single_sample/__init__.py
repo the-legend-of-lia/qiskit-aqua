@@ -14,7 +14,7 @@
 
 """ single sample packages """
 
-from .grover.grover import Grover
+from .grover.grover_asserts import Grover
 from .iterative_qpe.iqpe import IQPE
 from .qpe.qpe import QPE
 from .amplitude_estimation.ae import AmplitudeEstimation
