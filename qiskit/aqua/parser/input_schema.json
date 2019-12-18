@@ -1,5 +1,5 @@
 {
-    "$schema": "http://json-schema.org/schema#",
+    "$schema": "http://json-schema.org/draft-07/schema#",
     "id": "input_schema.json",
 
     "definitions": {
@@ -21,7 +21,7 @@
                 },
                 "circuit_caching": {
                     "type": "boolean",
-                    "default": true
+                    "default": false
                 },
                 "circuit_optimization_level": {
                     "type": ["integer", "string"],
@@ -30,7 +30,7 @@
                 },
                 "skip_qobj_deepcopy": {
                     "type": "boolean",
-                    "default": true
+                    "default": false
                 },
                 "circuit_cache_file": {
                     "type": ["string", "null"],

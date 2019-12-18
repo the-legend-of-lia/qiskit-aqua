@@ -12,13 +12,23 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
+""" The Quantum Approximate Optimization Algorithm. """
+
+# pylint: disable=unused-import
+
 import logging
+import warnings
 
 from qiskit.aqua import AquaError, Pluggable, PluggableType, get_pluggable_class
+from qiskit.aqua.operators import BaseOperator
 from qiskit.aqua.algorithms.adaptive import VQE
+from qiskit.aqua.components.optimizers import Optimizer
+from qiskit.aqua.components.initial_states import InitialState
 from .var_form import QAOAVarForm
 
 logger = logging.getLogger(__name__)
+
+# pylint: disable=invalid-name
 
 
 class QAOA(VQE):
@@ -32,15 +42,10 @@ class QAOA(VQE):
         'name': 'QAOA.Variational',
         'description': 'Quantum Approximate Optimization Algorithm',
         'input_schema': {
-            '$schema': 'http://json-schema.org/schema#',
+            '$schema': 'http://json-schema.org/draft-07/schema#',
             'id': 'qaoa_schema',
             'type': 'object',
             'properties': {
-                'operator_mode': {
-                    'type': 'string',
-                    'default': 'matrix',
-                    'enum': ['matrix', 'paulis', 'grouped_paulis']
-                },
                 'p': {
                     'type': 'integer',
                     'default': 1,
@@ -62,44 +67,57 @@ class QAOA(VQE):
         },
         'problems': ['ising'],
         'depends': [
-            {'pluggable_type': 'optimizer',
-             'default': {
-                     'name': 'COBYLA',
+            {
+                'pluggable_type': 'optimizer',
+                'default': {
+                    'name': 'COBYLA',
                 },
-             },
-            {'pluggable_type': 'initial_state',
-             'default': {
-                     'name': 'ZERO',
+            },
+            {
+                'pluggable_type': 'initial_state',
+                'default': {
+                    'name': 'ZERO',
                 },
-             },
+            },
         ],
     }
 
-    def __init__(self, operator, optimizer, p=1, initial_state=None, mixer=None, operator_mode='matrix',
-                 initial_point=None, max_evals_grouped=1, aux_operators=None, callback=None):
+    def __init__(self, operator, optimizer, p=1, initial_state=None, mixer=None,
+                 initial_point=None, max_evals_grouped=1, aux_operators=None,
+                 callback=None, auto_conversion=True):
         """
         Args:
-            operator (Operator): Qubit operator
-            operator_mode (str): operator mode, used for eval of operator
+            operator (BaseOperator): Qubit operator
             p (int): the integer parameter p as specified in https://arxiv.org/abs/1411.4028
             initial_state (InitialState): the initial state to prepend the QAOA circuit with
-            mixer (Operator): the mixer Hamiltonian to evolve with. Allows support
-                              of optimizations in constrained subspaces as
-                              specified in https://arxiv.org/abs/1709.03489
+            mixer (BaseOperator): the mixer Hamiltonian to evolve with. Allows support of
+                                  optimizations in constrained subspaces
+                                  as per https://arxiv.org/abs/1709.03489
             optimizer (Optimizer): the classical optimization algorithm.
             initial_point (numpy.ndarray): optimizer initial point.
             max_evals_grouped (int): max number of evaluations to be performed simultaneously.
-            callback (Callable): a callback that can access the intermediate data during the optimization.
+            aux_operators (list): aux operators
+            callback (Callable): a callback that can access the intermediate
+                                 data during the optimization.
                                  Internally, four arguments are provided as follows
                                  the index of evaluation, parameters of variational form,
-                                 evaluated mean, evaluated standard devation.
+                                 evaluated mean, evaluated standard deviation.
+            auto_conversion (bool): an automatic conversion for operator and aux_operators
+                into the type which is most suitable for the backend.
 
+                - for *non-Aer statevector simulator:*
+                  :class:`~qiskit.aqua.operators.MatrixOperator`
+                - for *Aer statevector simulator:*
+                  :class:`~qiskit.aqua.operators.WeightedPauliOperator`
+                - for *qasm simulator or real backend:*
+                  :class:`~qiskit.aqua.operators.TPBGroupedWeightedPauliOperator`
         """
         self.validate(locals())
-        var_form = QAOAVarForm(operator, p, initial_state=initial_state, mixer_operator=mixer)
-        super().__init__(operator, var_form, optimizer,
-                         operator_mode=operator_mode, initial_point=initial_point,
-                         max_evals_grouped=max_evals_grouped, aux_operators=aux_operators, callback=callback)
+        var_form = QAOAVarForm(operator.copy(), p, initial_state=initial_state,
+                               mixer_operator=mixer)
+        super().__init__(operator, var_form, optimizer, initial_point=initial_point,
+                         max_evals_grouped=max_evals_grouped, aux_operators=aux_operators,
+                         callback=callback, auto_conversion=auto_conversion)
 
     @classmethod
     def init_params(cls, params, algo_input):
@@ -109,6 +127,10 @@ class QAOA(VQE):
         Args:
             params (dict): parameters dictionary
             algo_input (EnergyInput): EnergyInput instance
+        Returns:
+            QAOA: instance of this class
+        Raises:
+            AquaError: invalid input
         """
         if algo_input is None:
             raise AquaError("EnergyInput instance is required.")
@@ -116,7 +138,6 @@ class QAOA(VQE):
         operator = algo_input.qubit_op
 
         qaoa_params = params.get(Pluggable.SECTION_KEY_ALGORITHM)
-        operator_mode = qaoa_params.get('operator_mode')
         p = qaoa_params.get('p')
         initial_point = qaoa_params.get('initial_point')
         max_evals_grouped = qaoa_params.get('max_evals_grouped')
@@ -131,6 +152,6 @@ class QAOA(VQE):
         optimizer = get_pluggable_class(PluggableType.OPTIMIZER,
                                         opt_params['name']).init_params(params)
 
-        return cls(operator, optimizer, p=p, initial_state=init_state, operator_mode=operator_mode,
+        return cls(operator, optimizer, p=p, initial_state=init_state,
                    initial_point=initial_point, max_evals_grouped=max_evals_grouped,
                    aux_operators=algo_input.aux_ops)

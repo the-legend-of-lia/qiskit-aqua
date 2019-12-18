@@ -12,6 +12,35 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
+"""
+Inverse Quantum Fourier Transforms (:mod:`qiskit.aqua.components.iqfts`)
+========================================================================
+Inverse Quantum Fourier Transforms...
+
+.. currentmodule:: qiskit.aqua.components.iqfts
+
+Inverse Quantum Fourier Transform Base Class
+============================================
+
+.. autosummary::
+   :toctree: ../stubs/
+   :nosignatures:
+
+   IQFT
+
+Inverse Quantum Fourier Transforms
+==================================
+
+.. autosummary::
+   :toctree: ../stubs/
+   :nosignatures:
+
+   Standard
+   Approximate
+
+"""
+# pylint: disable=cyclic-import
+
 from .iqft import IQFT
 from .standard import Standard
 from .approximate import Approximate

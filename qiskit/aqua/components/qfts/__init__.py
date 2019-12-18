@@ -12,6 +12,35 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
+"""
+Quantum Fourier Transforms (:mod:`qiskit.aqua.components.qfts`)
+===============================================================
+Quantum Fourier Transforms...
+
+.. currentmodule:: qiskit.aqua.components.qfts
+
+Quantum Fourier Transform Base Class
+====================================
+
+.. autosummary::
+   :toctree: ../stubs/
+   :nosignatures:
+
+   QFT
+
+Quantum Fourier Transforms
+==========================
+
+.. autosummary::
+   :toctree: ../stubs/
+   :nosignatures:
+
+   Standard
+   Approximate
+
+"""
+# pylint: disable=cyclic-import
+
 from .qft import QFT
 from .standard import Standard
 from .approximate import Approximate

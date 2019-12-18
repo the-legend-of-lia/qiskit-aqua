@@ -12,12 +12,18 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
+""" PhaseEstimationCircuit for getting the eigenvalues of a matrix. """
+
 import numpy as np
 from qiskit import QuantumRegister
-from qiskit.aqua import Operator, AquaError
+
+from qiskit.aqua import AquaError
 from qiskit.aqua import Pluggable, PluggableType, get_pluggable_class
 from qiskit.aqua.components.eigs import Eigenvalues
 from qiskit.aqua.circuits import PhaseEstimationCircuit
+from qiskit.aqua.operators import MatrixOperator, op_converter
+
+# pylint: disable=invalid-name
 
 
 class EigsQPE(Eigenvalues):
@@ -33,7 +39,7 @@ class EigsQPE(Eigenvalues):
         'name': 'EigsQPE',
         'description': 'Quantum Phase Estimation for eigenvalues',
         'input_schema': {
-            '$schema': 'http://json-schema.org/schema#',
+            '$schema': 'http://json-schema.org/draft-07/schema#',
             'id': 'eigsqpe_schema',
             'type': 'object',
             'properties': {
@@ -72,16 +78,18 @@ class EigsQPE(Eigenvalues):
             'additionalProperties': False
         },
         'depends': [
-            {'pluggable_type': 'iqft',
-             'default': {
-                     'name': 'STANDARD',
-                }
-             },
-            {'pluggable_type': 'qft',
-             'default': {
-                     'name': 'STANDARD',
-                }
-             },
+            {
+                'pluggable_type': 'iqft',
+                'default': {
+                    'name': 'STANDARD',
+                },
+            },
+            {
+                'pluggable_type': 'qft',
+                'default': {
+                    'name': 'STANDARD',
+                },
+            },
         ],
     }
 
@@ -93,12 +101,12 @@ class EigsQPE(Eigenvalues):
             expansion_order=1,
             evo_time=None,
             negative_evals=False,
-            ne_qfts=[None, None]
+            ne_qfts=None
     ):
         """Constructor.
 
         Args:
-            operator (Operator): the hamiltonian Operator object
+            operator (BaseOperator): the hamiltonian Operator object
             iqft (IQFT): the Inverse Quantum Fourier Transform pluggable component
             num_time_slices (int, optional): the number of time slices
             num_ancillae (int, optional): the number of ancillary qubits to use for the measurement
@@ -106,11 +114,13 @@ class EigsQPE(Eigenvalues):
             expansion_order (int, optional): the suzuki expansion order
             evo_time (float, optional): the evolution time
             negative_evals (bool, optional): indicate if negative eigenvalues need to be handled
-            ne_qfts ([QFT, IQFT], optional): the QFT and IQFT pluggable components for handling negative eigenvalues
+            ne_qfts (Union([QFT, IQFT], optional)): the QFT and IQFT pluggable components for
+                                            handling negative eigenvalues
         """
         super().__init__()
+        ne_qfts = ne_qfts if ne_qfts is not None else [None, None]
         super().validate(locals())
-        self._operator = operator
+        self._operator = op_converter.to_weighted_pauli_operator(operator)
         self._iqft = iqft
         self._num_ancillae = num_ancillae
         self._num_time_slices = num_time_slices
@@ -119,16 +129,23 @@ class EigsQPE(Eigenvalues):
         self._evo_time = evo_time
         self._negative_evals = negative_evals
         self._ne_qfts = ne_qfts
+        self._circuit = None
+        self._output_register = None
+        self._input_register = None
         self._init_constants()
 
     @classmethod
-    def init_params(cls, params, matrix):
+    def init_params(cls, params, matrix):  # pylint: disable=arguments-differ
         """
         Initialize via parameters dictionary and algorithm input instance
 
         Args:
-            params: parameters dictionary
-            matrix: two dimensional array which represents the operator
+            params (dict): parameters dictionary
+            matrix (numpy.ndarray): two dimensional array which represents the operator
+        Returns:
+            EigsQPE: instance of this class
+        Raises:
+            AquaError: Operator instance is required
         """
         if matrix is None:
             raise AquaError("Operator instance is required.")
@@ -146,7 +163,7 @@ class EigsQPE(Eigenvalues):
             num_ancillae += 1
             args['num_ancillae'] = num_ancillae
 
-        args['operator'] = Operator(matrix=matrix)
+        args['operator'] = MatrixOperator(matrix=matrix)
 
         # Set up iqft, we need to add num qubits to params which is our num_ancillae bits here
         iqft_params = params.get(Pluggable.SECTION_KEY_IQFT)
@@ -176,8 +193,6 @@ class EigsQPE(Eigenvalues):
 
     def _init_constants(self):
         # estimate evolution time
-        self._operator._check_representation('paulis')
-        # paulis = self._operator.paulis
         if self._evo_time is None:
             lmax = sum([abs(p[0]) for p in self._operator.paulis])
             if not self._negative_evals:
@@ -185,7 +200,8 @@ class EigsQPE(Eigenvalues):
             else:
                 self._evo_time = (1/2-2**-self._num_ancillae)*2*np.pi/lmax
 
-        # check for identify paulis to get its coef for applying global phase shift on ancillae later
+        # check for identify paulis to get its coef for applying global
+        # phase shift on ancillae later
         num_identities = 0
         for p in self._operator.paulis:
             if np.all(p[1].z == 0) and np.all(p[1].x == 0):
@@ -204,11 +220,13 @@ class EigsQPE(Eigenvalues):
         """ Construct the eigenvalues estimation using the PhaseEstimationCircuit
 
         Args:
-            mode (str): consctruction mode, 'matrix' not supported
+            mode (str): construction mode, 'matrix' not supported
             register (QuantumRegister): the register to use for the quantum state
 
         Returns:
-            the QuantumCircuit object for the constructed circuit
+            QuantumCircuit: object for the constructed circuit
+        Raises:
+            ValueError: QPE is only possible as a circuit not as a matrix
         """
 
         if mode == 'matrix':

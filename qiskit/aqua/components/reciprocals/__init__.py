@@ -12,6 +12,34 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
+"""
+Reciprocals (:mod:`qiskit.aqua.components.reciprocals`)
+===================================================================
+A component for computing a reciprocal, mainly used by :class:`HHL` algorithm
+
+.. currentmodule:: qiskit.aqua.components.reciprocals
+
+Reciprocal Base Class
+=====================
+
+.. autosummary::
+   :toctree: ../stubs/
+   :nosignatures:
+
+   Reciprocal
+
+Reciprocals
+===========
+
+.. autosummary::
+   :toctree: ../stubs/
+   :nosignatures:
+
+   LookupRotation
+   LongDivision
+
+"""
+
 from .reciprocal import Reciprocal
 from .lookup_rotation import LookupRotation
 from .long_division import LongDivision

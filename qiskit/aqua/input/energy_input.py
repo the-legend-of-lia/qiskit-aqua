@@ -12,12 +12,15 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
-from qiskit.aqua import AquaError, Operator
+""" Energy Input """
+
+from qiskit.aqua import AquaError
 from qiskit.aqua.input import AlgorithmInput
+from qiskit.aqua.operators import WeightedPauliOperator
 
 
 class EnergyInput(AlgorithmInput):
-
+    """ Energy Input """
     PROP_KEY_QUBITOP = 'qubit_op'
     PROP_KEY_AUXOPS = 'aux_ops'
 
@@ -25,7 +28,7 @@ class EnergyInput(AlgorithmInput):
         'name': 'EnergyInput',
         'description': 'Energy problem input',
         'input_schema': {
-            '$schema': 'http://json-schema.org/schema#',
+            '$schema': 'http://json-schema.org/draft-07/schema#',
             'id': 'energy_state_schema',
             'type': 'object',
             'properties': {
@@ -51,47 +54,57 @@ class EnergyInput(AlgorithmInput):
 
     @property
     def qubit_op(self):
+        """ returns qubit op """
         return self._qubit_op
 
     @qubit_op.setter
     def qubit_op(self, qubit_op):
+        """ set qubit op """
         self._qubit_op = qubit_op
 
     @property
     def aux_ops(self):
+        """ returns aux ops """
         return self._aux_ops
 
     def validate(self, args_dict):
+        """ validate input """
         params = {}
         for key, value in args_dict.items():
             if key == EnergyInput.PROP_KEY_QUBITOP:
-                value = value.save_to_dict() if value is not None else {}
+                value = value.to_dict() if value is not None else {}
             elif key == EnergyInput.PROP_KEY_AUXOPS:
-                value = [value[i].save_to_dict() for i in range(len(value))] if value is not None else None
+                value = \
+                    [value[i].to_dict() for i in range(len(value))] if value is not None else None
 
             params[key] = value
 
         super().validate(params)
 
     def add_aux_op(self, aux_op):
+        """ add aux ops """
         self._aux_ops.append(aux_op)
 
     def has_aux_ops(self):
+        """ check f has aux ops """
         return len(self._aux_ops) > 0
 
     def to_params(self):
+        """ to params """
         params = {}
-        params[EnergyInput.PROP_KEY_QUBITOP] = self._qubit_op.save_to_dict()
-        params[EnergyInput.PROP_KEY_AUXOPS] = [self._aux_ops[i].save_to_dict() for i in range(len(self._aux_ops))]
+        params[EnergyInput.PROP_KEY_QUBITOP] = self._qubit_op.to_dict()
+        params[EnergyInput.PROP_KEY_AUXOPS] = \
+            [self._aux_ops[i].to_dict() for i in range(len(self._aux_ops))]
         return params
 
     @classmethod
     def from_params(cls, params):
+        """ from params """
         if EnergyInput.PROP_KEY_QUBITOP not in params:
             raise AquaError("Qubit operator is required.")
         qparams = params[EnergyInput.PROP_KEY_QUBITOP]
-        qubit_op = Operator.load_from_dict(qparams)
+        qubit_op = WeightedPauliOperator.from_dict(qparams)
         if EnergyInput.PROP_KEY_AUXOPS in params:
             auxparams = params[EnergyInput.PROP_KEY_AUXOPS]
-            aux_ops = [Operator.load_from_dict(auxparams[i]) for i in range(len(auxparams))]
+            aux_ops = [WeightedPauliOperator.from_dict(auxparams[i]) for i in range(len(auxparams))]
         return cls(qubit_op, aux_ops)

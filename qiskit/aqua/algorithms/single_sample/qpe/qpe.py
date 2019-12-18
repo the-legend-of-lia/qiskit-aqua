@@ -16,19 +16,21 @@ The Quantum Phase Estimation Algorithm.
 """
 
 import logging
-from copy import deepcopy
 
 import numpy as np
 from qiskit.quantum_info import Pauli
 
-from qiskit.aqua import Operator, AquaError
+from qiskit.aqua import AquaError
 from qiskit.aqua import Pluggable, PluggableType, get_pluggable_class
+from qiskit.aqua.operators import op_converter
 from qiskit.aqua.utils import get_subsystem_density_matrix
 from qiskit.aqua.algorithms import QuantumAlgorithm
 from qiskit.aqua.circuits import PhaseEstimationCircuit
-
+from qiskit.aqua.operators import WeightedPauliOperator
 
 logger = logging.getLogger(__name__)
+
+# pylint: disable=invalid-name
 
 
 class QPE(QuantumAlgorithm):
@@ -43,7 +45,7 @@ class QPE(QuantumAlgorithm):
         'name': 'QPE',
         'description': 'Quantum Phase Estimation for Quantum Systems',
         'input_schema': {
-            '$schema': 'http://json-schema.org/schema#',
+            '$schema': 'http://json-schema.org/draft-07/schema#',
             'id': 'qpe_schema',
             'type': 'object',
             'properties': {
@@ -75,16 +77,18 @@ class QPE(QuantumAlgorithm):
         },
         'problems': ['energy'],
         'depends': [
-            {'pluggable_type': 'initial_state',
-             'default': {
-                     'name': 'ZERO'
-                }
-             },
-            {'pluggable_type': 'iqft',
-             'default': {
-                     'name': 'STANDARD',
-                }
-             },
+            {
+                'pluggable_type': 'initial_state',
+                'default': {
+                    'name': 'ZERO'
+                },
+            },
+            {
+                'pluggable_type': 'iqft',
+                'default': {
+                    'name': 'STANDARD',
+                },
+            },
         ],
     }
 
@@ -94,31 +98,31 @@ class QPE(QuantumAlgorithm):
             shallow_circuit_concat=False
     ):
         """
-        Constructor.
 
         Args:
-            operator (Operator): the hamiltonian Operator object
-            state_in (InitialState): the InitialState pluggable component representing the initial quantum state
+            operator (BaseOperator): the hamiltonian Operator object
+            state_in (InitialState): the InitialState pluggable component
+                representing the initial quantum state
             iqft (IQFT): the Inverse Quantum Fourier Transform pluggable component
             num_time_slices (int): the number of time slices
             num_ancillae (int): the number of ancillary qubits to use for the measurement
             expansion_mode (str): the expansion mode (trotter|suzuki)
             expansion_order (int): the suzuki expansion order
-            shallow_circuit_concat (bool): indicate whether to use shallow (cheap) mode for circuit concatenation
+            shallow_circuit_concat (bool): indicate whether to use shallow
+                (cheap) mode for circuit concatenation
         """
         self.validate(locals())
         super().__init__()
-
+        self._operator = op_converter.to_weighted_pauli_operator(operator.copy())
         self._num_ancillae = num_ancillae
         self._ret = {}
-        self._operator = deepcopy(operator)
 
-        self._ret['translation'] = sum([abs(p[0]) for p in self._operator.get_flat_pauli_list()])
+        self._ret['translation'] = sum([abs(p[0]) for p in self._operator.reorder_paulis()])
         self._ret['stretch'] = 0.5 / self._ret['translation']
 
         # translate the operator
-        self._operator._simplify_paulis()
-        translation_op = Operator([
+        self._operator.simplify()
+        translation_op = WeightedPauliOperator([
             [
                 self._ret['translation'],
                 Pauli(
@@ -127,9 +131,9 @@ class QPE(QuantumAlgorithm):
                 )
             ]
         ])
-        translation_op._simplify_paulis()
+        translation_op.simplify()
         self._operator += translation_op
-        self._pauli_list = self._operator.get_flat_pauli_list()
+        self._pauli_list = self._operator.reorder_paulis()
 
         # stretch the operator
         for p in self._pauli_list:
@@ -149,8 +153,12 @@ class QPE(QuantumAlgorithm):
         Initialize via parameters dictionary and algorithm input instance.
 
         Args:
-            params: parameters dictionary
-            algo_input: EnergyInput instance
+            params (dict): parameters dictionary
+            algo_input (EnergyInput): instance
+        Returns:
+            QPE: instance of this class
+        Raises:
+            AquaError: EnergyInput instance is required.
         """
         if algo_input is None:
             raise AquaError("EnergyInput instance is required.")
@@ -183,7 +191,8 @@ class QPE(QuantumAlgorithm):
         Construct circuit.
 
         Args:
-            measurement (bool): Boolean flag to indicate if measurement should be included in the circuit.
+            measurement (bool): Boolean flag to indicate if measurement
+                should be included in the circuit.
 
         Returns:
             QuantumCircuit: quantum circuit.
@@ -201,22 +210,26 @@ class QPE(QuantumAlgorithm):
                 range(self._num_ancillae, self._num_ancillae + self._operator.num_qubits)
             )
             ancilla_density_mat_diag = np.diag(ancilla_density_mat)
-            max_amplitude = max(ancilla_density_mat_diag.min(), ancilla_density_mat_diag.max(), key=abs)
+            max_amplitude = \
+                max(ancilla_density_mat_diag.min(), ancilla_density_mat_diag.max(), key=abs)
             max_amplitude_idx = np.where(ancilla_density_mat_diag == max_amplitude)[0][0]
             top_measurement_label = np.binary_repr(max_amplitude_idx, self._num_ancillae)[::-1]
         else:
             qc = self.construct_circuit(measurement=True)
             result = self._quantum_instance.execute(qc)
             ancilla_counts = result.get_counts(qc)
-            top_measurement_label = sorted([(ancilla_counts[k], k) for k in ancilla_counts])[::-1][0][-1][::-1]
+            top_measurement_label = \
+                sorted([(ancilla_counts[k], k) for k in ancilla_counts])[::-1][0][-1][::-1]
 
         top_measurement_decimal = sum(
-            [t[0] * t[1] for t in zip(self._binary_fractions, [int(n) for n in top_measurement_label])]
+            [t[0] * t[1] for t in zip(self._binary_fractions,
+                                      [int(n) for n in top_measurement_label])]
         )
 
         self._ret['top_measurement_label'] = top_measurement_label
         self._ret['top_measurement_decimal'] = top_measurement_decimal
-        self._ret['eigvals'] = [top_measurement_decimal / self._ret['stretch'] - self._ret['translation']]
+        self._ret['eigvals'] = \
+            [top_measurement_decimal / self._ret['stretch'] - self._ret['translation']]
         self._ret['energy'] = self._ret['eigvals'][0]
 
     def _run(self):
