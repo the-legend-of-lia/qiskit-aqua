@@ -2,7 +2,7 @@
 
 # This code is part of Qiskit.
 #
-# (C) Copyright IBM 2018, 2019.
+# (C) Copyright IBM 2018, 2020.
 #
 # This code is licensed under the Apache License, Version 2.0. You may
 # obtain a copy of this license in the LICENSE.txt file in the root directory
@@ -45,6 +45,7 @@ Submodules
 .. autosummary::
    :toctree:
 
+   applications
    algorithms
    components
    core
@@ -54,26 +55,14 @@ Submodules
 
 from .qiskit_chemistry_error import QiskitChemistryError
 from .qmolecule import QMolecule
-from .qiskit_chemistry_problem import ChemistryProblem
-from .qiskit_chemistry import (QiskitChemistry, run_experiment, run_driver_to_json)
 from .fermionic_operator import FermionicOperator
 from .mp2info import MP2Info
-from ._logging import (get_logging_level,
-                       build_logging_config,
-                       set_logging_config,
-                       get_qiskit_chemistry_logging,
+from ._logging import (get_qiskit_chemistry_logging,
                        set_qiskit_chemistry_logging)
 
 __all__ = ['QiskitChemistryError',
            'QMolecule',
-           'ChemistryProblem',
-           'QiskitChemistry',
-           'run_experiment',
-           'run_driver_to_json',
            'FermionicOperator',
            'MP2Info',
-           'get_logging_level',
-           'build_logging_config',
-           'set_logging_config',
            'get_qiskit_chemistry_logging',
            'set_qiskit_chemistry_logging']

@@ -2,7 +2,7 @@
 
 # This code is part of Qiskit.
 #
-# (C) Copyright IBM 2018, 2019.
+# (C) Copyright IBM 2018, 2020.
 #
 # This code is licensed under the Apache License, Version 2.0. You may
 # obtain a copy of this license in the LICENSE.txt file in the root directory
@@ -29,6 +29,7 @@ class PhaseEstimationCircuit:
     """
     Quantum Phase Estimation Circuit.
     """
+
     def __init__(
             self,
             operator=None,
@@ -49,9 +50,9 @@ class PhaseEstimationCircuit:
 
         Args:
             operator (WeightedPauliOperator): the hamiltonian Operator object
-            state_in (InitialState): the InitialState pluggable component
+            state_in (InitialState): the InitialState component
             representing the initial quantum state
-            iqft (IQFT): the Inverse Quantum Fourier Transform pluggable component
+            iqft (IQFT): the Inverse Quantum Fourier Transform component
             num_time_slices (int): the number of time slices
             num_ancillae (int): the number of ancillary qubits to use for the measurement
             expansion_mode (str): the expansion mode (trotter|suzuki)
@@ -213,7 +214,9 @@ class PhaseEstimationCircuit:
             if measurement:
                 c_ancilla = ClassicalRegister(self._num_ancillae, name='ca')
                 qc.add_register(c_ancilla)
-                # qc.barrier(a)
+                # real hardware can currently not handle operations after measurements, which might
+                # happen if the circuit gets transpiled, hence we're adding a safeguard-barrier
+                qc.barrier()
                 qc.measure(a, c_ancilla)
 
             self._circuit = qc

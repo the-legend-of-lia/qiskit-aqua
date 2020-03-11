@@ -2,7 +2,7 @@
 
 # This code is part of Qiskit.
 #
-# (C) Copyright IBM 2019.
+# (C) Copyright IBM 2019, 2020.
 #
 # This code is licensed under the Apache License, Version 2.0. You may
 # obtain a copy of this license in the LICENSE.txt file in the root directory
@@ -12,18 +12,16 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
-""" Generative Quantum and Classical Neural Networks. """
+""" Generative Quantum and Classical Neural Networks."""
 
-from abc import abstractmethod
-
-from qiskit.aqua import Pluggable
+from abc import ABC, abstractmethod
 
 
-class GenerativeNetwork(Pluggable):
+class GenerativeNetwork(ABC):
     """
     Base class for generative Quantum and Classical Neural Networks.
 
-    This method should initialize the module and its configuration, but
+    This method should initialize the module, but
     raise an exception if a required component of the module is not available.
     """
     @abstractmethod
@@ -32,21 +30,6 @@ class GenerativeNetwork(Pluggable):
         self._num_parameters = 0
         self._num_qubits = 0
         self._bounds = list()
-        pass
-
-    @classmethod
-    def init_params(cls, params):
-        """ init params """
-        generative_params = params.get(Pluggable.SECTION_KEY_GENERATIVE_NETWORK)
-        args = {k: v for k, v in generative_params.items() if k != 'name'}
-
-        return cls(**args)
-
-    @classmethod
-    @abstractmethod
-    def get_section_key_name(cls):
-        """ get section key name """
-        pass
 
     @abstractmethod
     def set_seed(self, seed):
@@ -68,7 +51,7 @@ class GenerativeNetwork(Pluggable):
 
         Args:
             quantum_instance (QuantumInstance): Quantum Instance, used to run the generator circuit.
-            qc_state_in (QuantumCircuit): corresponding to the input state
+            qc_state_in (QuantumCircuit or vector): corresponding to the network input state
             params (numpy.ndarray): parameters which should be used to run the generator,
                 if None use self._params
             shots (int): if not None use a number of shots that is different from the number

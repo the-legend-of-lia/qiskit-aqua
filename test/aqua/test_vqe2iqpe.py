@@ -2,7 +2,7 @@
 
 # This code is part of Qiskit.
 #
-# (C) Copyright IBM 2018, 2019.
+# (C) Copyright IBM 2018, 2020.
 #
 # This code is licensed under the Apache License, Version 2.0. You may
 # obtain a copy of this license in the LICENSE.txt file in the root directory
@@ -15,24 +15,24 @@
 """ Test VQE to IQPE """
 
 import unittest
-from test.aqua.common import QiskitAquaTestCase
+from test.aqua import QiskitAquaTestCase
 
 import numpy as np
 from qiskit import BasicAer
 
 from qiskit.aqua import QuantumInstance, aqua_globals
-from qiskit.aqua.input import EnergyInput
 from qiskit.aqua.utils import decimal_to_binary
 from qiskit.aqua.operators import WeightedPauliOperator
 from qiskit.aqua.components.initial_states import VarFormBased
 from qiskit.aqua.components.variational_forms import RYRZ
 from qiskit.aqua.components.optimizers import SPSA
 from qiskit.aqua.algorithms import VQE
-from qiskit.aqua.algorithms import IQPE
+from qiskit.aqua.algorithms import IQPEMinimumEigensolver
 
 
 class TestVQE2IQPE(QiskitAquaTestCase):
     """ Test VQE to IQPE """
+
     def setUp(self):
         super().setUp()
         self.seed = 0
@@ -45,51 +45,51 @@ class TestVQE2IQPE(QiskitAquaTestCase):
                        {"coeff": {"imag": 0.0, "real": 0.18093119978423156}, "label": "XX"}
                        ]
         }
-        qubit_op = WeightedPauliOperator.from_dict(pauli_dict)
-        self.algo_input = EnergyInput(qubit_op)
+        self.qubit_op = WeightedPauliOperator.from_dict(pauli_dict)
 
     def test_vqe_2_iqpe(self):
         """ vqe to iqpe test """
         backend = BasicAer.get_backend('qasm_simulator')
-        num_qbits = self.algo_input.qubit_op.num_qubits
+        num_qbits = self.qubit_op.num_qubits
         var_form = RYRZ(num_qbits, 3)
         optimizer = SPSA(max_trials=10)
         # optimizer.set_options(**{'max_trials': 500})
-        algo = VQE(self.algo_input.qubit_op, var_form, optimizer)
+        algo = VQE(self.qubit_op, var_form, optimizer)
         quantum_instance = QuantumInstance(backend, seed_simulator=self.seed,
                                            seed_transpiler=self.seed)
         result = algo.run(quantum_instance)
 
         self.log.debug('VQE result: %s.', result)
 
-        ref_eigenval = -1.85727503
+        ref_eigenval = -1.85727503 + 0j
 
         num_time_slices = 1
         num_iterations = 6
 
-        state_in = VarFormBased(var_form, result['opt_params'])
-        iqpe = IQPE(self.algo_input.qubit_op, state_in, num_time_slices, num_iterations,
-                    expansion_mode='suzuki', expansion_order=2, shallow_circuit_concat=True)
+        state_in = VarFormBased(var_form, result.optimal_point)
+        iqpe = IQPEMinimumEigensolver(self.qubit_op, state_in, num_time_slices, num_iterations,
+                                      expansion_mode='suzuki', expansion_order=2,
+                                      shallow_circuit_concat=True)
         quantum_instance = QuantumInstance(
             backend, shots=100, seed_transpiler=self.seed, seed_simulator=self.seed
         )
         result = iqpe.run(quantum_instance)
 
-        self.log.debug('top result str label:         %s', result['top_measurement_label'])
-        self.log.debug('top result in decimal:        %s', result['top_measurement_decimal'])
-        self.log.debug('stretch:                      %s', result['stretch'])
-        self.log.debug('translation:                  %s', result['translation'])
-        self.log.debug('final eigenvalue from QPE:    %s', result['energy'])
+        self.log.debug('top result str label:         %s', result.top_measurement_label)
+        self.log.debug('top result in decimal:        %s', result.top_measurement_decimal)
+        self.log.debug('stretch:                      %s', result.stretch)
+        self.log.debug('translation:                  %s', result.translation)
+        self.log.debug('final eigenvalue from QPE:    %s', result.eigenvalue)
         self.log.debug('reference eigenvalue:         %s', ref_eigenval)
         self.log.debug('ref eigenvalue (transformed): %s',
-                       (ref_eigenval + result['translation']) * result['stretch'])
+                       (ref_eigenval + result.translation) * result.stretch)
         self.log.debug('reference binary str label:   %s', decimal_to_binary(
-            (ref_eigenval + result['translation']) * result['stretch'],
+            (ref_eigenval.real + result.translation) * result.stretch,
             max_num_digits=num_iterations + 3,
             fractional_part_only=True
         ))
 
-        np.testing.assert_approx_equal(result['energy'], ref_eigenval, significant=2)
+        np.testing.assert_approx_equal(result.eigenvalue.real, ref_eigenval.real, significant=2)
 
 
 if __name__ == '__main__':

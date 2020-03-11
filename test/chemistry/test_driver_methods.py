@@ -2,7 +2,7 @@
 
 # This code is part of Qiskit.
 #
-# (C) Copyright IBM 2019.
+# (C) Copyright IBM 2019, 2020.
 #
 # This code is licensed under the Apache License, Version 2.0. You may
 # obtain a copy of this license in the LICENSE.txt file in the root directory
@@ -14,9 +14,9 @@
 
 """ Test Driver Methods """
 
-from test.chemistry.common import QiskitChemistryTestCase
+from test.chemistry import QiskitChemistryTestCase
 from qiskit.chemistry.core import Hamiltonian, TransformationType, QubitMappingType
-from qiskit.aqua.algorithms.classical import ExactEigensolver
+from qiskit.aqua.algorithms import NumPyMinimumEigensolver
 
 
 class TestDriverMethods(QiskitChemistryTestCase):
@@ -49,7 +49,7 @@ class TestDriverMethods(QiskitChemistryTestCase):
 
         qubit_op, aux_ops = core.run(qmolecule)
 
-        exact_eigensolver = ExactEigensolver(qubit_op, aux_operators=aux_ops, k=1)
+        exact_eigensolver = NumPyMinimumEigensolver(qubit_op, aux_operators=aux_ops)
         _, result = core.process_algorithm_result(exact_eigensolver.run())
         return result
 

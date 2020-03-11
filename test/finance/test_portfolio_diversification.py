@@ -2,7 +2,7 @@
 
 # This code is part of Qiskit.
 #
-# (C) Copyright IBM 2019.
+# (C) Copyright IBM 2019, 2020.
 #
 # This code is licensed under the Apache License, Version 2.0. You may
 # obtain a copy of this license in the LICENSE.txt file in the root directory
@@ -12,16 +12,16 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
-""" Test Portfolio Optimization """
+""" Test Portfolio Diversification Optimization """
 
 import math
-from test.finance.common import QiskitFinanceTestCase
+from test.finance import QiskitFinanceTestCase
 
 import numpy as np
 from qiskit.quantum_info import Pauli
 
 from qiskit.aqua import aqua_globals
-from qiskit.aqua.algorithms import ExactEigensolver
+from qiskit.aqua.algorithms import NumPyMinimumEigensolver
 from qiskit.finance.ising.portfolio_diversification import \
     (get_portfoliodiversification_solution,
      get_operator,
@@ -118,10 +118,10 @@ class ClassicalOptimizer:
 
 
 # To run only this test, issue:
-# python -m unittest test.test_portfoliodiversification.TestPortfolioDiversification
+# python -m unittest test.finance_portfoliodiversification.TestPortfolioDiversification
 
 class TestPortfolioDiversification(QiskitFinanceTestCase):
-    """Tests vehicle routing Ising translator."""
+    """Tests Portfolio Diversification Ising translator."""
 
     def setUp(self):
         super().setUp()
@@ -211,7 +211,7 @@ class TestPortfolioDiversification(QiskitFinanceTestCase):
         """ simple2 test """
         # Computes the cost using the exact eigensolver
         # and compares it against pre-determined value.
-        result = ExactEigensolver(self.qubit_op).run()
+        result = NumPyMinimumEigensolver(self.qubit_op).run()
         quantum_solution = get_portfoliodiversification_solution(self.instance,
                                                                  self.n,
                                                                  self.q, result)
@@ -233,7 +233,7 @@ class TestPortfolioDiversification(QiskitFinanceTestCase):
             # This test should not focus on the availability of CPLEX, so we just eat the exception.
             self.skipTest("CPLEX may be missing.")
         # Solve the problem using the exact eigensolver
-        result = ExactEigensolver(self.qubit_op).run()
+        result = NumPyMinimumEigensolver(self.qubit_op).run()
         quantum_solution = get_portfoliodiversification_solution(self.instance,
                                                                  self.n,
                                                                  self.q, result)

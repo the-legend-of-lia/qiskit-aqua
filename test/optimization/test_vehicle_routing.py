@@ -2,7 +2,7 @@
 
 # This code is part of Qiskit.
 #
-# (C) Copyright IBM 2019.
+# (C) Copyright IBM 2019, 2020.
 #
 # This code is licensed under the Apache License, Version 2.0. You may
 # obtain a copy of this license in the LICENSE.txt file in the root directory
@@ -14,12 +14,12 @@
 
 """ Test Vehicle Routing """
 
-from test.optimization.common import QiskitOptimizationTestCase
+from test.optimization import QiskitOptimizationTestCase
 
 import numpy as np
 from qiskit.quantum_info import Pauli
 from qiskit.aqua import aqua_globals
-from qiskit.aqua.algorithms import ExactEigensolver
+from qiskit.aqua.algorithms import NumPyMinimumEigensolver
 from qiskit.optimization.ising.vehicle_routing import get_operator
 
 
@@ -61,6 +61,6 @@ class TestVehicleRouting(QiskitOptimizationTestCase):
     def test_simple2(self):
         """ simple2 test """
         # Solve the problem using the exact eigensolver
-        result = ExactEigensolver(self.qubit_op).run()
+        result = NumPyMinimumEigensolver(self.qubit_op).run()
         arr = np.array([0., 0., 0., 1.])
-        np.testing.assert_array_almost_equal(arr, result['eigvecs'][0], 4)
+        np.testing.assert_array_almost_equal(arr, result.eigenstate, 4)

@@ -2,7 +2,7 @@
 
 # This code is part of Qiskit.
 #
-# (C) Copyright IBM 2019.
+# (C) Copyright IBM 2019, 2020.
 #
 # This code is licensed under the Apache License, Version 2.0. You may
 # obtain a copy of this license in the LICENSE.txt file in the root directory
@@ -12,41 +12,24 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
-""" Discriminative Quantum or Classical Neural Networks. """
+""" Discriminative Quantum or Classical Neural Networks."""
 
-from abc import abstractmethod
-
-from qiskit.aqua import Pluggable
+from abc import ABC, abstractmethod
 
 
-class DiscriminativeNetwork(Pluggable):
+class DiscriminativeNetwork(ABC):
     """
     Base class for discriminative Quantum or Classical Neural Networks.
 
-    This method should initialize the module and its configuration, but
+    This method should initialize the module but
     raise an exception if a required component of the module is not available.
     """
     @abstractmethod
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self._num_parameters = 0
         self._num_qubits = 0
         self._bounds = list()
-        pass
-
-    @classmethod
-    def init_params(cls, params):
-        """ init params """
-        discriminative_params = params.get(Pluggable.SECTION_KEY_DISCRIMINATIVE_NET)
-        args = {k: v for k, v in discriminative_params.items() if k != 'name'}
-
-        return cls(**args)
-
-    @classmethod
-    @abstractmethod
-    def get_section_key_name(cls):
-        """ get section key names """
-        pass
 
     @abstractmethod
     def set_seed(self, seed):
