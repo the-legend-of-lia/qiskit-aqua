@@ -26,11 +26,11 @@ import numpy as np
 from qiskit import ClassicalRegister, QuantumCircuit, QuantumRegister
 
 from qiskit.aqua.utils.arithmetic import is_power
-from qiskit.aqua import AquaError, Pluggable
+from qiskit.aqua import AquaError
 from qiskit.aqua.utils import get_subsystem_density_matrix
 from qiskit.aqua.algorithms import QuantumAlgorithm
 from qiskit.aqua.circuits import FourierTransformCircuits as ftc
-from qiskit.aqua.circuits.gates import mcu1
+# from qiskit.aqua.circuits.gates import mcu1
 from qiskit.aqua.utils import summarize_circuits
 
 logger = logging.getLogger(__name__)

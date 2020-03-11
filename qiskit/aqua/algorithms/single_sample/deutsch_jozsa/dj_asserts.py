@@ -21,7 +21,7 @@ import numpy as np
 
 from qiskit import ClassicalRegister, QuantumCircuit
 
-from qiskit.aqua import AquaError, Pluggable, PluggableType, get_pluggable_class
+from qiskit.aqua import AquaError
 from qiskit.aqua.algorithms import QuantumAlgorithm
 from qiskit.aqua.utils import get_subsystem_density_matrix
 
