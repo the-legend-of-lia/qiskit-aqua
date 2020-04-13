@@ -18,7 +18,7 @@ The Variational Quantum Eigensolver algorithm.
 See https://arxiv.org/abs/1304.3061
 """
 
-from typing import Optional, List, Callable
+from typing import Optional, List, Callable, Union
 import logging
 import functools
 import warnings
@@ -27,8 +27,8 @@ from time import time
 import numpy as np
 from qiskit import ClassicalRegister, QuantumCircuit
 from qiskit.circuit import ParameterVector
-
-from qiskit.aqua import AquaError
+from qiskit.providers import BaseBackend
+from qiskit.aqua import QuantumInstance, AquaError
 from qiskit.aqua.operators import (TPBGroupedWeightedPauliOperator, WeightedPauliOperator,
                                    MatrixOperator, op_converter)
 from qiskit.aqua.utils.backend_utils import (is_statevector_backend,
@@ -89,7 +89,8 @@ class VQE(VQAlgorithm, MinimumEigensolver):
                  max_evals_grouped: int = 1,
                  aux_operators: Optional[List[BaseOperator]] = None,
                  callback: Optional[Callable[[int, np.ndarray, float, float], None]] = None,
-                 auto_conversion: bool = True) -> None:
+                 auto_conversion: bool = True,
+                 quantum_instance: Optional[Union[QuantumInstance, BaseBackend]] = None) -> None:
         """
 
         Args:
@@ -124,6 +125,7 @@ class VQE(VQAlgorithm, MinimumEigensolver):
                   :class:`~qiskit.aqua.operators.WeightedPauliOperator`
                 - for *qasm simulator or real backend:*
                   :class:`~qiskit.aqua.operators.TPBGroupedWeightedPauliOperator`
+            quantum_instance: Quantum Instance or Backend
         """
         validate_min('max_evals_grouped', max_evals_grouped, 1)
 
@@ -146,7 +148,8 @@ class VQE(VQAlgorithm, MinimumEigensolver):
         super().__init__(var_form=var_form,
                          optimizer=optimizer,
                          cost_fn=self._energy_evaluation,
-                         initial_point=initial_point)
+                         initial_point=initial_point,
+                         quantum_instance=quantum_instance)
 
         self._in_operator = None
         self._operator = None
@@ -328,7 +331,7 @@ class VQE(VQAlgorithm, MinimumEigensolver):
         values = []
         params = []
         for idx, operator in enumerate(self._aux_operators):
-            if not operator.is_empty():
+            if operator is not None and not operator.is_empty():
                 temp_circuit = QuantumCircuit() + wavefn_circuit
                 circuit = operator.construct_evaluation_circuit(
                     wave_function=temp_circuit,
@@ -345,6 +348,9 @@ class VQE(VQAlgorithm, MinimumEigensolver):
             result = self._quantum_instance.execute(to_be_simulated_circuits)
 
             for idx, operator in enumerate(self._aux_operators):
+                if operator is None:
+                    values.append(None)
+                    continue
                 if operator.is_empty():
                     mean, std = 0.0, 0.0
                 else:
@@ -358,8 +364,7 @@ class VQE(VQAlgorithm, MinimumEigensolver):
                 values.append((mean, std))
 
         if values:
-            aux_op_vals = np.empty([1, len(self._aux_operators), 2])
-            aux_op_vals[0, :] = np.asarray(values)
+            aux_op_vals = [np.asarray(values)]
             self._ret['aux_ops'] = aux_op_vals
 
     def compute_minimum_eigenvalue(
@@ -390,6 +395,8 @@ class VQE(VQAlgorithm, MinimumEigensolver):
             self._operator = \
                 self._config_the_best_mode(self._operator, self._quantum_instance.backend)
             for i in range(len(self._aux_operators)):
+                if self._aux_operators[i] is None:
+                    continue
                 if not self._aux_operators[i].is_empty():
                     self._aux_operators[i] = \
                         self._config_the_best_mode(self._aux_operators[i],
